@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MGH Energy Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="/mgh-data.js"></script>
+<style>
+:root{--bg:#f3f4f2;--panel:#fff;--ink:#18221f;--muted:#5d6a66;--line:#d9ddd9;--brass:#9a6b1f;--teal:#1f4b47;padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111816;--panel:#19221f;--ink:#e6ebe8;--muted:#97a6a1;--line:#2c3834;--brass:#d9a85a;--teal:#8cc4bd;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111816;--panel:#19221f;--ink:#e6ebe8;--muted:#97a6a1;--line:#2c3834;--brass:#d9a85a;--teal:#8cc4bd;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Archivo",Arial,sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px max(16px,env(safe-area-inset-left,0px)) 40px max(16px,env(safe-area-inset-right,0px))}
+small.k{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--brass)}
+h1{margin:4px 0 6px;font-size:30px;font-weight:800;letter-spacing:-.02em}p{margin:0 0 22px;color:var(--muted);max-width:60ch}
+.cards{display:grid;gap:12px}
+a.card{display:grid;grid-template-columns:70px 1fr;gap:4px 16px;align-items:center;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+a.card:hover{border-color:var(--teal)}a.card:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+a.card .t{grid-row:1/3;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--teal)}
+a.card b{font-size:17px}a.card span{font-size:13px;color:var(--muted)}
+.foot{margin-top:22px;font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.foot button{font:inherit;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;color:var(--ink);cursor:pointer}
+</style>
+</head>
+<body><main>
+<small class="k">Manhattan Grand Hotel · Hulhumalé</small>
+<h1>Energy Control</h1>
+<p>Daily energy rounds, AC control and the hotel's electricity performance. Enter the staff PIN when asked; it is remembered on this device.</p>
+<div class="cards">
+ <a class="card" href="/energy-round"><span class="t">08:00–23:30</span><b>Daily energy round</b><span>Meter reading, Engineering and Security rounds at 12:00 and 19:00, Duty Manager final check.</span></a>
+ <a class="card" href="/ac-control"><span class="t">09:00–18:30</span><b>AC control log</b><span>Lobby 23°C / 19°C changes, every room and area at 23°C or off, Chief Engineer review.</span></a>
+ <a class="card" href="/performance"><span class="t">Reports</span><b>Performance</b><span>Electricity used and check results by week, month and year.</span></a>
+</div>
+<div class="foot"><span id="who">Checking access…</span><button type="button" onclick="MGH.changePin()">Change PIN</button></div>
+</main>
+<script>MGH.role().then(r=>{document.getElementById("who").textContent=r==="admin"?"Signed in with the admin PIN":r==="staff"?"Signed in with the staff PIN":"Not signed in"})</script>
+</body></html>

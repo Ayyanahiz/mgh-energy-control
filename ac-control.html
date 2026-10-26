@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}
+.mghnav{display:flex;gap:4px 14px;flex-wrap:wrap;align-items:center;font:600 12px/1.2 "Archivo",Arial,sans-serif;padding:8px max(16px,env(safe-area-inset-left,0px));background:var(--ink);color:var(--panel)}
+.mghnav a{color:inherit;opacity:.75;text-decoration:none}.mghnav a[aria-current="page"]{opacity:1;text-decoration:underline;text-underline-offset:3px}.mghnav button{margin-left:auto;font:inherit;background:none;border:0;color:inherit;opacity:.75;cursor:pointer;padding:0}</style>
+<script src="/mgh-data.js"></script>
+<title>MGH AC Control Log</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: phone-first technician log. Sticky header with date and five sections (Lobby, Areas, Chief Engineer, Report, Rules); Areas has floor tabs. */
+:root{
+  --bg:#f1f4f6; --panel:#ffffff; --ink:#15202a; --muted:#5a6873; --line:#d6dde2;
+  --cool:#1d5f8a; --cool-soft:#e1edf5; --warm:#b4540a; --warm-soft:#fcebd9;
+  --off:#2d7a4b; --off-soft:#e1f1e6; --bad:#b3261e; --bad-soft:#fbe3e1; --mute-soft:#e8ecef;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161b; --panel:#172129; --ink:#e4ebf0; --muted:#94a4b0; --line:#2a3842;
+  --cool:#7fb8de; --cool-soft:#162a38; --warm:#f2a15a; --warm-soft:#38250f;
+  --off:#6cc690; --off-soft:#15301f; --bad:#f2847a; --bad-soft:#3d1a17; --mute-soft:#22303a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161b; --panel:#172129; --ink:#e4ebf0; --muted:#94a4b0; --line:#2a3842;
+  --cool:#7fb8de; --cool-soft:#162a38; --warm:#f2a15a; --warm-soft:#38250f;
+  --off:#6cc690; --off-soft:#15301f; --bad:#f2847a; --bad-soft:#3d1a17; --mute-soft:#22303a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.4}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:900px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 90px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:12px 10px;display:grid;gap:10px}
+.brand{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand h1{margin:0;font-size:18px;font-weight:800}
+.brand h1 small{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--cool)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+input[type=date]{width:auto} input.num{width:76px;font-family:var(--mono);text-align:center}
+input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;margin:2px 0 0}
+:focus-visible{outline:2px solid var(--cool);outline-offset:1px}
+button,.btn{font:inherit;cursor:pointer;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.primary,.btn.primary{background:var(--cool);color:var(--panel);border-color:var(--cool);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tab{flex:0 0 auto;padding:6px 11px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tab .c{font-family:var(--mono);font-size:11px;opacity:.75}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bad)}
+.strip{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.strip b{color:var(--ink)} .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--cool)}
+.head{margin:22px 0 8px}.head h2{margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+.head p{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:65ch}.lvl{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:16px}
+.panel h3{margin:0 0 10px;font-size:16px}.panel h4{margin:14px 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.notice{margin-top:12px;font-size:13px;padding:9px 12px;border-radius:6px;background:var(--cool-soft)}
+.notice.warm{background:var(--warm-soft)} .notice.bad{background:var(--bad-soft)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.form label,.fl{display:grid;gap:4px;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+.share{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.blockers{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--bad)}
+.dial{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.dial .big{font-family:var(--mono);font-size:44px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.dial .big small{font-size:18px}
+.mode{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px}
+.mode.hot{background:var(--warm-soft);color:var(--warm)} .mode.normal{background:var(--cool-soft);color:var(--cool)}
+.lbtn{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:12px}
+.lbtn button{justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px}
+.lbtn button b{font-size:15px} .lbtn button span{font-size:12px;color:var(--muted)}
+.lbtn .hot{border-color:var(--warm);background:var(--warm-soft)} .lbtn .cool{border-color:var(--cool);background:var(--cool-soft)}
+.zone{margin-top:18px}.zonehead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:2px solid var(--ink)}
+.zonehead h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.zonehead .zn{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.row .nm{font-weight:600;min-width:0}.row .nm small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.tm{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:6px;font-weight:400}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 7px;align-self:center}
+.seg button{border:0;border-left:1px solid var(--line);border-radius:0;padding:7px 10px;font-size:13px;font-weight:600;min-width:46px;justify-content:center}
+.seg button[aria-pressed="true"].o{background:var(--off-soft);color:var(--off)} .seg button[aria-pressed="true"].n{background:var(--cool-soft);color:var(--cool)}
+.det{grid-column:1/-1;display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px;align-items:end;padding:8px;border-radius:6px;background:var(--cool-soft)}
+.det.bad{background:var(--bad-soft);outline:1px solid var(--bad)}
+.det label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:grid;gap:4px}
+.det .msg{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--bad);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;margin-top:10px}
+.tile{padding:8px 0;font-family:var(--mono);font-size:13px;font-weight:600;border-radius:6px;justify-content:center;flex-direction:column;gap:0}
+.tile small{display:block;font-size:9px;letter-spacing:.04em;font-weight:500;opacity:.85}
+.tile.ok{background:var(--cool-soft);color:var(--cool);border-color:var(--cool)} .tile.off{background:var(--off-soft);color:var(--off);border-color:var(--off)}
+.tile.reset{background:var(--warm-soft);color:var(--warm);border-color:var(--warm)} .tile.na{background:var(--mute-soft);color:var(--muted)}
+.tile[aria-current="true"]{outline:3px solid var(--ink);outline-offset:1px}
+.actbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:6px;font-size:13px;color:var(--muted)}
+.actbar .sel{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.tw{overflow-x:auto;margin-top:6px}
+table.t{width:100%;border-collapse:collapse;font-size:13px;min-width:540px}
+table.t th,table.t td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--off-soft);color:var(--off)} .pill.prog{background:var(--warm-soft);color:var(--warm)} .pill.no{background:var(--mute-soft);color:var(--muted)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.decl{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-top:12px}
+.rules{margin:0;padding-left:20px;max-width:70ch}.rules li{margin:7px 0}
+.sp{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:4px 0 12px}
+.sp div{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px}.sp b{display:block;font-family:var(--mono);font-size:22px}
+pre.rep{white-space:pre-wrap;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;max-height:260px;overflow:auto;margin:10px 0 0}
+footer.act{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);z-index:6;padding-bottom:env(safe-area-inset-bottom,0px)}
+footer.act .wrap{padding-block:10px;display:flex;gap:8px;justify-content:space-between;align-items:center}
+footer.act .st{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+@media (max-width:620px){.row{grid-template-columns:1fr}.ctrls{justify-content:flex-start}.det{grid-template-columns:1fr 1fr}}
+</style>
+
+</head>
+<body>
+<nav class="mghnav"><a href="/">MGH Energy Control</a><a href="/energy-round">Energy round</a><a href="/ac-control" aria-current="page">AC control</a><a href="/performance">Performance</a><button type="button" onclick="MGH.changePin()">Change PIN</button></nav>
+<header class="top"><div class="wrap">
+  <div class="brand"><h1><small>Manhattan Grand Hotel · Engineering</small>AC Control Log</h1><input type="date" id="dateIn" aria-label="Log date"></div>
+  <div class="tabs" role="tablist" id="mainTabs"></div>
+  <div id="sub"></div>
+</div></header>
+<main class="wrap" id="main"></main>
+<footer class="act"><div class="wrap"><span class="st" id="saveSt">Loading…</span><button class="primary" data-tab="report">Daily report</button></div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+(function(){
+const ESS_IT="Server / IT AC stays ON 24h. Check lights.";
+const FLOORS=[
+ {id:"B",name:"Basement",lvl:"-2.00",note:"Back-of-house. Admin offices must be fully OFF unless staff are working. Any light or AC found ON needs a reason: in use for work, or an operational need.",zones:[
+  {name:"Admin offices",priority:true,sub:"Must be OFF unless staff are working",areas:[
+   ["WOB Executive Office",1],["Finance Manager",1],["Accountant & Cashier",1],["Purchasing Manager",1],["Sales & Marketing",1],["Reservations",1],["Front Office (back office)",1],["Corporate Office",1],["IT Position",1],["Human Resources",1],["Housekeeping Office",1],["Chief Engineer Office",1],["Receiving Office",1],["Photo Studio",1],["Tea Room",1],["Admin WC",0],["IT Room / Server",1,ESS_IT],["Security Office",1,"Manned 24h"]]},
+  {name:"Staff facilities",areas:[["Staff Canteen",1],["Staff Recreation Room",1],["Male Locker",1],["Female Locker",1],["Prayer Room",1],["Uniform Room",1],["Staff Entrance & Corridor",0,"Safety lighting stays ON"]]},
+  {name:"Kitchen & stores",areas:[["Prep Kitchen",1],["Bakery",1],["Meat & Poultry Prep",1],["Seafood Prep",1],["Fruit Prep",1],["Cold Kitchen",1],["F&B Dry Storage",1],["Beverage Store",1],["Storekeeper",1],["Chemical Storage",0],["Cold rooms & freezers",0,"Refrigeration stays ON. Doors shut, inside lights OFF."],["Cold Storage",0]]},
+  {name:"Laundry & housekeeping",areas:[["Laundry",1],["Linen Storage",1],["Housekeeping & Room Service",1]]},
+  {name:"Engineering & plant",areas:[["Engineering Room",1],["Workshop",1],["Mechanical Room",0],["Generator Room",0],["Transformer Room",0],["MV Switch & Metering Room",0],["Electrical Room",0],["Panel Room",0],["Pump Room",0],["Soft Water Pump Room",0],["Receiving Dock",0],["Dry & Wet Waste",0]]}
+ ]},
+ {id:"1",name:"1st Floor",lvl:"+2.50",note:"Lobby, F&B outlets, pool and studio. Public areas follow the lighting schedule. Check outlets after closing.",zones:[
+  {name:"Front of house",areas:[["Lobby & Front Desk",1,"Open 24h"],["Lobby Seating Area",1],["Front Office",1],["FOM Office",1],["Luggage Room",0],["Lift Lobby",1,"Open 24h"],["Public Toilets (Men & Women)",1]]},
+  {name:"F&B outlets",areas:[["Café Barbera",1],["Restaurant",1],["Restaurant Kitchen",1],["Pool Bar",0],["Pantry",1],["Storage",0]]},
+  {name:"Studio",areas:[["Main Studio (220 m²)",1],["Control Room",1]]},
+  {name:"Outdoor & landscape",areas:[["Pool & Pool Deck lighting",0],["Reflecting Pond lighting",0],["Drop-off & Landscape lighting",0],["Car Park lighting",0]]},
+  {name:"Studio Suites",rooms:{prefix:"SS",label:"Suite",list:[1,2,3,4,5]},sub:"Check vacant suites only"}
+ ]},
+ {id:"M",name:"Mezzanine",lvl:"+7.20",note:"All-day dining and main kitchen. Check between meal periods and after close.",zones:[
+  {name:"Dining",areas:[["All-Day Dining (472 m²)",1],["All-Day Breakfast area",1],["Bar & Buffet counters",1],["Lounge & Working Pods",1]]},
+  {name:"Kitchen",areas:[["Main Kitchen & Bakery",1],["Chef Office / Briefing",1],["Kitchen Corridor",0]]},
+  {name:"Common",areas:[["Toilets",1],["Lift Lobby",1,"Open 24h"]]}
+ ]},
+ {id:"2",name:"2nd Floor",lvl:"+12.10",note:"Leased office floor. Check after tenant working hours.",zones:[
+  {name:"West wing offices",areas:[["NCD Staff",1],["NCD DDG",1],["CD Staff",1],["CD DDG",1],["EH Staff",1],["EH DDG",1],["DG Room",1],["Media Room",1],["Team Room",1],["Call Centre (West)",1],["HR",1],["Counsel Room",1],["Admin Staff",1],["Admin DDG",1],["Reception",1],["Medical Stock Room",1],["General Stock (West)",1],["Health Promotion Room",1],["MOH IT Room",1,ESS_IT],["Janitor's Room",0]]},
+  {name:"East wing offices",areas:[["Call Centre (East)",1],["Admin Office",1],["PA Room",1],["MEMS Room",1],["Female Staff Room",1],["Male Staff Room",1],["Tea Room",1],["General Stock (East)",1],["Medical Stock (East)",1],["Dispatch Room",1],["Meeting Hall",1],["Meeting Room",1],["DM Room",1],["Service Room",1],["WOB Maid Room",1]]},
+  {name:"Common",areas:[["Toilets (West)",1],["Toilets (East)",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"3",name:"3rd Floor",lvl:"+15.40",note:"Media Village studios (leased). Check after tenant hours.",zones:[
+  {name:"Media Village studios",rooms:{prefix:"MV",label:"Studio",list:range(1,35)},sub:"Leased studios 1 to 35"},
+  {name:"Common",areas:[["Maid's Room",1],["Janitor's Room",0],["Toilets (West)",1],["Toilets (East)",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"4",name:"4th Floor",lvl:"+18.70",note:"Guest rooms in the west wing, Youth Ministry offices in the east wing.",zones:[
+  {name:"Guest rooms",rooms:{prefix:"R",label:"Room",list:range(401,420)},sub:"Check vacant rooms only. Mark occupied rooms as Occupied."},
+  {name:"Youth Ministry offices",rooms:{prefix:"YM",label:"Office",list:range(1,14)},sub:"Leased offices. Check after hours."},
+  {name:"Common",areas:[["Maid's Room",1],["Toilets (East)",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"5",name:"5th Floor",lvl:"+22.00",note:"Guest rooms 501 to 536.",zones:[
+  {name:"Guest rooms",rooms:{prefix:"R",label:"Room",list:range(501,536)},sub:"Check vacant rooms only"},
+  {name:"Common",areas:[["Maid's Room",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"6",name:"6th Floor",lvl:"+25.30",note:"Guest rooms 601 to 636.",zones:[
+  {name:"Guest rooms",rooms:{prefix:"R",label:"Room",list:range(601,636)},sub:"Check vacant rooms only"},
+  {name:"Common",areas:[["Maid's Room",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"7",name:"7th Floor",lvl:"+28.60",note:"Guest rooms 701 to 735 and the gym.",zones:[
+  {name:"Guest rooms",rooms:{prefix:"R",label:"Room",list:range(701,735)},sub:"Check vacant rooms only"},
+  {name:"Gym",areas:[["Gym",1],["Gym Shower & WC",1]]},
+  {name:"Common",areas:[["Maid's Room",1],["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"8",name:"8th Floor",lvl:"+31.90",note:"Guest rooms 801 to 820, specialty dining, spa and F&B offices.",zones:[
+  {name:"Guest rooms",rooms:{prefix:"R",label:"Room",list:range(801,820)},sub:"Check vacant rooms only"},
+  {name:"Specialty dining",areas:[["Specialty Dining",1],["Terrace lighting",0],["Specialty Kitchen",1]]},
+  {name:"Spa",areas:[["Spa Reception / Waiting",1],["Treatment Room 01",1],["Treatment Room 02",1],["Treatment Room 03",1],["Foot Massage",1],["Sauna (heater)",1,"Heater recorded in the AC column"],["Spa Locker",1]]},
+  {name:"Offices",areas:[["F&B Office",1],["Managers Office",1],["Staff Toilets",1]]},
+  {name:"Common",areas:[["Corridors",1,"Corridor lighting on schedule"],["Lift Lobby",1]]}
+ ]},
+ {id:"R",name:"Roof",lvl:"+35.75",note:"Event hall, roof deck and plant rooms.",zones:[
+  {name:"Event & deck",areas:[["Roof Event Hall",1],["Roof Deck lighting",0],["Roof Toilets",1]]},
+  {name:"Plant rooms",areas:[["AHU Room (guest room fresh air)",0,"Plant runs 24h. Check room lights."],["Hot Water Plant Room",0,"Plant runs 24h. Check room lights."],["Lift Machine Room",1,"Machine room cooling stays ON"],["Kitchen Exhaust Fan Room",0],["Fireman Lift Lobby Fan Room",0]]}
+ ]}
+];
+
+function range(a,b){const r=[];for(let i=a;i<=b;i++)r.push(i);return r}
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}
+
+/* ============ AC inventory and rules ============ */
+const STD=23, HOT=19, CUTOFF="18:30";
+const LOBBY_IDS=["1-lobby-front-desk","1-lobby-seating-area"];
+const SKIP=new Set(["8-sauna-heater"]);
+const EXEMPT={"b-it-room-server":"Server room: own setpoint","2-moh-it-room":"IT room: own setpoint","r-lift-machine-room":"Machine room cooling: own setpoint"};
+const REASONS=["Staff working","Guests / service hours","Event or meeting","Cleaning / maintenance","Operational need (24h)","Other (see note)"];
+const ALL={},ORDER=[];
+FLOORS.forEach(f=>{f.zones.forEach(z=>{
+  z.ids=z.rooms?z.rooms.list.map(n=>({id:z.rooms.prefix.toLowerCase()+"-"+n,n:String(n),room:true,label:z.rooms.label}))
+    :z.areas.filter(a=>a[1]&&!SKIP.has(f.id.toLowerCase()+"-"+slug(a[0]))&&LOBBY_IDS.indexOf(f.id.toLowerCase()+"-"+slug(a[0]))<0).map(a=>{const id=f.id.toLowerCase()+"-"+slug(a[0]);return {id,n:a[0],ex:EXEMPT[id]||""}});
+  z.ids.forEach(a=>{a.floor=f;a.zone=z;a.full=a.room?a.label+" "+a.n:a.n;ALL[a.id]=a;ORDER.push(a)});});
+  f.zones=f.zones.filter(z=>z.ids.length);});
+const TOTAL=ORDER.length;
+const RULES=[
+ ["Lobby","Keep at 23°C. When the sun on the glass doors makes the lobby hot, drop to 19°C. Return to 23°C as soon as the heat passes or the sun is down. Log every change with the lobby temperature. The lobby must be back at 23°C by 18:30."],
+ ["Guest rooms and studio suites","Occupied rooms and rooms being prepared for arrival: 23°C. Vacant rooms: AC off. A room found at any other setpoint is reset to 23°C and the found setpoint is recorded."],
+ ["Staff and back-of-house areas","23°C while in use. Switch off when nobody is using the area."],
+ ["Corridors, common areas, restaurants and unused areas","Switch off when not in use. If in use (service hours, an event, cleaning), 23°C and record why."],
+ ["Own-setpoint equipment","Server and IT rooms and the lift machine room keep their own setpoint. Record that the AC is running; do not change it."],
+ ["Daily routine","09:00 the AC technician sets and records every room and area, floor by floor. From 11:00 to sunset the technician watches the lobby and logs each 19°C / 23°C change. 18:15 lobby back to 23°C, restaurants and unused areas off. 18:30 the Chief Engineer reviews the log, spot-checks areas and signs off."],
+ ["Accountability","Technician and Chief Engineer enter full name and staff ID. Every entry is time-stamped and linked to the signed-in account. Floors recorded faster than 8 seconds per area are flagged."]
+];
+
+/* ============ State ============ */
+let date=today(),D=blank(),exists=false,tab="lobby",floor="B",sel={},db=null,user=null,downloads=null,myId=null,owner=false,mode="local",unsub=null,pending=0,failed=false,deferred=false;
+function blank(){return {date,tech:{},lobby:{},areas:{},ce:{}}}
+function today(){const d=new Date();return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
+function p2(n){return String(n).padStart(2,"0")}
+function hm(ms){if(!ms)return "";const d=new Date(ms);return p2(d.getHours())+":"+p2(d.getMinutes())}
+function atMs(t){return new Date(date+"T"+t+":00").getTime()}
+const $=s=>document.querySelector(s),main=$("#main");
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function dateLabel(){return new Date(date+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+
+/* ============ Logic ============ */
+function it(id){const x=D.areas[id];return x&&!x.cleared?x:null}
+// area status: "" | "off" | "on" | "dev" | "missing"   rooms: "" | ok | off | reset | na
+function status(a,x){x=x||it(a.id);if(!x)return "";
+  if(a.room)return x.st||"";
+  if(x.on==="off")return "off";
+  if(x.on!=="on")return "";
+  if(x.set==null||x.set==="")return "missing";
+  if(!a.ex&&Number(x.set)!==STD)return "dev";
+  if(!x.r)return "missing";
+  return "on";}
+function rec(s){return s&&s!=="missing"&&s!=="dev"}
+function stats(ids){ids=ids||ORDER;const s={total:ids.length,rec:0,off:0,on:0,reset:0,dev:0,missing:0,na:0,ok:0};
+  ids.forEach(a=>{const st=status(a);if(rec(st))s.rec++;if(st==="off")s.off++;if(st==="on"||st==="ok")s.on++;if(st==="reset")s.reset++;if(st==="dev")s.dev++;if(st==="missing")s.missing++;if(st==="na")s.na++;
+    const x=it(a.id);if(!a.room&&x&&x.fs!=null&&st==="on")s.reset++;});return s}
+function lobbyList(){return Object.keys(D.lobby||{}).map(k=>Object.assign({k},D.lobby[k])).filter(e=>e&&e.t&&!e.del).sort((a,b)=>a.t-b.t)}
+function lobbyNow(){const l=lobbyList();return l.length?l[l.length-1]:null}
+function lobbyFlags(){
+  const l=lobbyList(),out=[];const cut=atMs(CUTOFF);const now=Date.now();const past=date<today()||(date===today()&&now>cut);
+  if(!l.length){if(date<=today()&&(date<today()||now>atMs("12:00")))out.push("No lobby temperature logged today");return out}
+  let hotSince=null,hotMin=0;
+  l.forEach(e=>{if(e.set===HOT&&hotSince==null)hotSince=e.t;else if(e.set!==HOT&&hotSince!=null){if(e.t>cut)out.push(`Lobby returned to ${e.set}°C at ${hm(e.t)}, after ${CUTOFF}`);hotMin+=(e.t-hotSince)/60000;hotSince=null}
+    if(e.set!==HOT&&e.set!==STD)out.push(`Lobby set to ${e.set}°C at ${hm(e.t)}: only ${STD}°C or ${HOT}°C allowed`);
+    if(e.meas!=null&&e.meas!==""&&Number(e.meas)>e.set+3)out.push(`Lobby measured ${e.meas}°C at ${hm(e.t)} with setpoint ${e.set}°C`)});
+  if(hotSince!=null){if(past)out.push(`Lobby still at ${HOT}°C after ${CUTOFF} (since ${hm(hotSince)}). Return it to ${STD}°C.`);hotMin+=((past?Math.max(cut,hotSince):now)-hotSince)/60000}
+  return out;
+}
+function hotMinutes(){const l=lobbyList();let m=0,s=null;const end=date<today()?atMs("23:59"):Date.now();l.forEach(e=>{if(e.set===HOT&&s==null)s=e.t;else if(e.set!==HOT&&s!=null){m+=(e.t-s)/60000;s=null}});if(s!=null)m+=(end-s)/60000;return Math.round(m)}
+function floorFast(f){const ts=f.zones.flatMap(z=>z.ids).map(a=>it(a.id)).filter(x=>x&&x.t0).map(x=>x.t0).sort((a,b)=>a-b);
+  if(ts.length<6)return null;const avg=(ts[ts.length-1]-ts[0])/1000/(ts.length-1);return avg<8?{n:ts.length,avg,first:ts[0],last:ts[ts.length-1]}:null}
+function floorTimes(f){const ts=f.zones.flatMap(z=>z.ids).map(a=>it(a.id)).filter(x=>x&&x.t0).map(x=>x.t0).sort((a,b)=>a-b);return ts.length?{first:ts[0],last:ts[ts.length-1],n:ts.length}:null}
+function allFlags(){const out=lobbyFlags().map(f=>["Lobby",f]);
+  const tc=D.tech;if(tc.startedAt){const d=Math.round((tc.startedAt-atMs("09:00"))/60000);if(Math.abs(d)>45)out.push(["Timing",`AC round started at ${hm(tc.startedAt)} (scheduled 09:00)`])}
+  FLOORS.forEach(f=>{const x=floorFast(f);if(x)out.push(["Speed",`${f.name}: ${x.n} entries, average ${x.avg.toFixed(1)} s per area. Verify physical visit.`])});
+  if(tc.startedAt&&!tc.signedAt)out.push(["Sign-off","Technician has not signed off"]);
+  if(!D.ce.signedAt&&(date<today()||Date.now()>atMs("19:30")))out.push(["Sign-off","Chief Engineer has not signed off"]);
+  return out}
+function exceptions(){return ORDER.map(a=>{const x=it(a.id);if(!x)return null;const st=status(a,x);
+  if(a.room&&(st==="reset"||st==="na"))return {a,x,what:st==="reset"?`Found at ${x.fs}°C, reset to ${STD}°C`:"No access (DND / occupied)"};
+  if(!a.room&&x.fs!=null&&x.on==="on")return {a,x,what:`Found at ${x.fs}°C, reset to ${STD}°C`};
+  if(st==="dev")return {a,x,what:`Running at ${x.set}°C: not reset`};
+  return null}).filter(Boolean)}
+function inUse(){return ORDER.filter(a=>!a.room&&["on","dev"].indexOf(status(a))>-1).map(a=>({a,x:it(a.id)}))}
+
+/* ============ Persistence ============ */
+const LSK="mgh-ac-log:";
+function setSave(t){$("#saveSt").textContent=t}
+let q=Promise.resolve();
+function persist(patch){
+  if(mode!=="db"){try{localStorage.setItem(LSK+date,JSON.stringify(D))}catch(e){}setSave("Saved on this device");return}
+  pending++;setSave("Saving…");const ref=db.doc("ac/"+date);
+  q=q.then(async()=>{if(!exists||!patch){await ref.set(D);exists=true}else await ref.update(patch)}).then(()=>{failed=false},e=>{failed=true;setSave(e&&e.code==="invalid_argument"?"Not saved: you need Contributor access to this page.":"Not saved. Check the connection and try again.")}).then(()=>{pending--;if(!pending&&!failed)setSave("Saved · shared with Engineering")});
+  saveAcDay();
+}
+let acDayT=null;
+function saveAcDay(){if(mode!=="db")return;clearTimeout(acDayT);acDayT=setTimeout(()=>{const s=stats();const l=lobbyList();
+  const body={date,rec:s.rec,total:s.total,off:s.off,on:s.on,reset:s.reset,dev:s.dev,na:s.na,hotMin:hotMinutes(),lobbyChanges:l.filter(e=>e.kind!=="check").length,lobbyEntries:l.length,
+    flags:allFlags().length,lobbyFlags:lobbyFlags().length,techName:D.tech.name||"",techId:D.tech.id||"",techStartedAt:D.tech.startedAt||null,techSignedAt:D.tech.signedAt||null,
+    ceName:D.ce.name||"",ceId:D.ce.id||"",ceSignedAt:D.ce.signedAt||null,updatedAt:Date.now()};
+  db.doc("acdays/"+date).set(body).catch(()=>{})},3000)}
+function setArea(id,patch){const old=D.areas[id]&&!D.areas[id].cleared?D.areas[id]:{};const now=Date.now();
+  const x=Object.assign({},old,patch,{t:now,cleared:false});if(!old.t0)x.t0=now;if(myId)x.uid=myId;
+  D.areas[id]=x;persist({areas:{[id]:x}});render()}
+function subscribe(){
+  if(unsub){unsub();unsub=null}D=blank();exists=false;
+  if(mode!=="db"){try{const v=localStorage.getItem(LSK+date);if(v){D=Object.assign(blank(),JSON.parse(v));exists=true}}catch(e){}render();return}
+  setSave("Loading…");
+  unsub=db.doc("ac/"+date).onSnapshot(s=>{exists=s.exists;const d=s.exists?s.data():{};
+    D=Object.assign(blank(),d,{tech:Object.assign({},d.tech||{}),ce:Object.assign({},d.ce||{}),lobby:Object.assign({},d.lobby||{}),areas:Object.assign({},d.areas||{})});
+    if(!pending)setSave(s.exists?"Saved · shared with Engineering":"New day: nothing logged yet");
+    const ae=document.activeElement;if(ae&&ae.dataset&&ae.dataset.keep!==undefined){deferred=true;return}render()},()=>setSave("Live sync stopped. Reload the page."));
+}
+document.addEventListener("focusout",()=>{if(deferred){deferred=false;setTimeout(render,0)}});
+
+/* ============ Render ============ */
+function techReady(){return !!D.tech.startedAt}
+function techEditable(){return techReady()&&!D.tech.signedAt}
+function renderHeader(){
+  $("#dateIn").value=date;const s=stats();const lf=lobbyFlags().length;const ln=lobbyNow();
+  const T=[["lobby",`Lobby ${ln?`<span class="c">${ln.set}°</span>`:""}${lf?' <i class="dot"></i>':""}`],["areas",`Rooms & areas <span class="c">${s.rec}/${s.total}</span>${s.dev+s.missing?' <i class="dot"></i>':""}`],["ce",`Chief Engineer${D.ce.signedAt?" ✓":""}`],["report","Report"],["rules","Rules"]];
+  $("#mainTabs").innerHTML=T.map(t=>`<button class="tab" role="tab" data-tab="${t[0]}" aria-selected="${tab===t[0]}">${t[1]}</button>`).join("");
+  let h="";
+  if(techReady())h+=`<div class="strip"><span>Technician <b>${esc(D.tech.name)}</b> · ID <span class="n">${esc(D.tech.id)}</span></span><span>Started <span class="n">${hm(D.tech.startedAt)}</span></span>${D.tech.signedAt?`<span class="pill ok">Signed ${hm(D.tech.signedAt)}</span>`:""}${D.ce.signedAt?`<span class="pill ok">CE signed ${hm(D.ce.signedAt)}</span>`:""}</div>`;
+  if(tab==="areas"&&techReady()){h+=`<div class="bar" style="margin-top:8px"><i style="width:${s.rec/s.total*100}%"></i></div><div class="tabs" style="margin-top:8px">${FLOORS.map(f=>{const k=stats(f.zones.flatMap(z=>z.ids));return `<button class="tab" data-floor="${f.id}" aria-selected="${floor===f.id}">${esc(f.name)} <span class="c">${k.rec}/${k.total}</span>${k.dev+k.missing?' <i class="dot"></i>':""}</button>`}).join("")}<button class="tab" data-floor="SIGN" aria-selected="${floor==="SIGN"}">${D.tech.signedAt?"Signed ✓":"Sign off"}</button></div>`}
+  $("#sub").innerHTML=h;
+}
+function startPanel(){
+  let sv={};try{sv=JSON.parse(localStorage.getItem(LSK+"tech")||"{}")}catch(e){}
+  return `<div class="panel"><h3>AC technician on duty</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Enter your details to start today's log. The start time is recorded.</p>
+   <div class="form"><label>Full name<input id="tName" data-keep value="${esc(sv.name||"")}" placeholder="AC technician"></label><label>Staff ID<input id="tId" data-keep value="${esc(sv.id||"")}" placeholder="e.g. MGH-ENG-021"></label></div>
+   <div class="share"><button class="primary" id="startBtn">Start today's AC log</button></div><div id="startErr" class="blockers" role="alert"></div></div>`;
+}
+function renderLobby(){
+  const ln=lobbyNow(),l=lobbyList(),fl=lobbyFlags();const now=Date.now();
+  let h=`<div class="head"><h2>Lobby temperature</h2><p>Standard ${STD}°C. Drop to ${HOT}°C when the sun on the glass doors heats the lobby, and return to ${STD}°C once the heat passes or the sun is down. Log every change.</p></div>`;
+  if(date!==today())h+=`<div class="notice">You are looking at ${esc(date)}, not today.</div>`;
+  if(mode!=="db")h+=`<div class="notice bad">Shared saving is unavailable in this view, so entries stay on this device only.</div>`;
+  if(!techReady()){main.innerHTML=h+startPanel();return}
+  if(ln&&ln.set===HOT&&date===today()&&now>atMs("18:00"))h+=`<div class="notice warm"><b>Sun is down.</b> Return the lobby to ${STD}°C now.</div>`;
+  h+=`<div class="panel"><div class="dial"><div class="big">${ln?ln.set:"—"}<small>°C</small></div><div>${ln?`<span class="mode ${ln.set===HOT?"hot":"normal"}">${ln.set===HOT?"Hot-weather setting":"Standard setting"}</span><div class="muted" style="font-size:13px;margin-top:4px">Set at ${hm(ln.t)} by ${esc(ln.by||"")}${ln.meas!=null&&ln.meas!==""?` · lobby measured ${esc(ln.meas)}°C`:""}</div>`:`<div class="muted">No setting logged yet today. Log the morning check first.</div>`}
+   <div class="muted" style="font-size:12px;margin-top:4px">Time at ${HOT}°C today: <span class="n">${Math.floor(hotMinutes()/60)} h ${hotMinutes()%60} min</span></div></div></div>
+   ${D.ce.signedAt?"":`<div class="form" style="margin-top:14px"><label>Lobby temperature now (°C)<input id="lMeas" data-keep type="number" step="0.1" inputmode="decimal" placeholder="e.g. 26.5"></label><label>Note<input id="lNote" data-keep placeholder="e.g. Afternoon sun on main entrance doors"></label></div>
+   <div class="lbtn"><button class="hot" data-lobby="${HOT}"><b>Hot: set ${HOT}°C</b><span>Sun on the glass doors, lobby getting warm</span></button>
+     <button class="cool" data-lobby="${STD}"><b>Back to ${STD}°C</b><span>Heat has passed or the sun is down</span></button>
+     <button data-lobby="check"><b>Check, no change</b><span>Record the lobby temperature at the current setting</span></button></div><div id="lErr" class="blockers" role="alert"></div>`}</div>`;
+  if(fl.length)h+=`<div class="notice bad"><b>Lobby flags</b><ul class="blockers" style="margin-top:4px">${fl.map(f=>`<li>${esc(f)}</li>`).join("")}</ul></div>`;
+  h+=`<div class="panel"><h3>Today's lobby log (${l.length})</h3>${l.length?`<div class="tw"><table class="t"><thead><tr><th>Time</th><th>Action</th><th>Setpoint</th><th>Lobby temp</th><th>By</th><th>Note</th></tr></thead><tbody>${l.map(e=>`<tr><td class="n">${hm(e.t)}</td><td>${e.kind==="hot"?'<span class="mode hot">Hot</span>':e.kind==="normal"?'<span class="mode normal">Back to 23</span>':"Check"}</td><td class="n">${e.set}°C</td><td class="n">${e.meas!=null&&e.meas!==""?esc(e.meas)+"°C":"—"}</td><td>${esc(e.by||"")} <span class="muted n">${esc(e.sid||"")}</span></td><td>${esc(e.note||"")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">Nothing logged yet.</p>`}</div>`;
+  main.innerHTML=h;
+}
+function seg(id,v,dis){return `<div class="seg" role="group" aria-label="AC"><span>AC</span><button class="o" data-on="${id}" data-v="off" aria-pressed="${v==="off"}"${dis}>Off</button><button class="n" data-on="${id}" data-v="on" aria-pressed="${v==="on"}"${dis}>On</button></div>`}
+function areaRow(a,dis){const x=it(a.id)||{};const st=status(a,x);
+  let det="";
+  if(x.on==="on"){const bad=st==="dev"||st==="missing";
+    det=`<div class="det${bad?" bad":""}">${st==="dev"?`<div class="msg">Running at ${esc(x.set)}°C. Must be ${STD}°C. <button data-reset="${a.id}"${dis}>Reset to ${STD}°C</button></div>`:st==="missing"?`<div class="msg">Enter the setpoint and why it is in use.</div>`:""}
+      <label>Setpoint °C<input class="num" type="number" step="0.5" data-set="${a.id}" data-keep value="${esc(x.set==null?"":x.set)}"${dis}></label>
+      <label>Room temp °C<input class="num" type="number" step="0.1" data-meas="${a.id}" data-keep value="${esc(x.meas==null?"":x.meas)}"${dis}></label>
+      <label>In use for<select data-reason="${a.id}"${dis}><option value="">Choose…</option>${REASONS.map(r=>`<option${x.r===r?" selected":""}>${esc(r)}</option>`).join("")}</select></label>
+      ${x.fs!=null?`<div class="muted" style="grid-column:1/-1;font-size:12px">Found at ${esc(x.fs)}°C, reset to ${STD}°C at ${hm(x.rt)}</div>`:""}</div>`}
+  return `<div class="row"><div class="nm">${esc(a.n)}${x.t?`<span class="tm">${hm(x.t)}</span>`:""}<small>${a.ex?esc(a.ex):"Off when unused · 23°C when in use"}</small></div><div class="ctrls">${seg(a.id,x.on,dis)}</div>${det}</div>`}
+function roomZone(f,z,dis){const key=f.id+z.name;const s=sel[key];
+  const tiles=z.ids.map(a=>{const x=it(a.id);const st=status(a,x);const lab={ok:"23°",off:"OFF",reset:"RESET",na:"N/A"}[st]||"&nbsp;";
+    return `<button class="tile ${st}" data-tile="${a.id}" data-key="${esc(key)}" aria-current="${s===a.id}" aria-label="${esc(a.full)}"${dis}>${esc(a.n)}<small>${lab}</small></button>`}).join("");
+  const sa=s&&ALL[s];
+  const bar=dis?"":sa?`<div class="actbar"><span class="sel">${esc(sa.full)}</span>
+    <button data-ract="ok" data-id="${sa.id}" data-key="${esc(key)}">At 23°C ✓</button>
+    <button data-ract="off" data-id="${sa.id}" data-key="${esc(key)}">Vacant: AC off</button>
+    <label style="display:inline-flex;gap:6px;align-items:center">Found at<input class="num" id="fs-${sa.id}" data-keep type="number" step="0.5" placeholder="°C"></label><button data-ract="reset" data-id="${sa.id}" data-key="${esc(key)}">Reset to 23°C</button>
+    <button data-ract="na" data-id="${sa.id}" data-key="${esc(key)}">No access</button><button data-ract="clear" data-id="${sa.id}" data-key="${esc(key)}">Clear</button><span id="rErr" style="color:var(--bad)"></span></div>`
+   :`<div class="actbar">Tap each ${esc(z.ids[0].label.toLowerCase())} as you check its thermostat.</div>`;
+  return `<div class="grid">${tiles}</div>${bar}<div class="legend"><span><i style="background:var(--cool)"></i>At 23°C</span><span><i style="background:var(--off)"></i>Vacant, off</span><span><i style="background:var(--warm)"></i>Reset to 23°C</span><span><i style="background:var(--mute-soft)"></i>No access</span></div>`}
+function renderAreas(){
+  let h="";if(mode!=="db")h+=`<div class="notice bad">Shared saving is unavailable in this view, so entries stay on this device only.</div>`;
+  if(!techReady()){main.innerHTML=`<div class="head"><h2>Rooms and areas</h2><p>Daily 09:00 round: every guest room at ${STD}°C or off if vacant, staff areas at ${STD}°C while in use, everything unused switched off.</p></div>`+h+startPanel();return}
+  if(floor==="SIGN"){renderTechSign();return}
+  const f=FLOORS.find(x=>x.id===floor)||FLOORS[0];floor=f.id;const dis=techEditable()?"":" disabled";
+  if(D.tech.signedAt)h+=`<div class="notice">Signed off at ${hm(D.tech.signedAt)}. Read only.</div>`;
+  h+=`<div class="head"><h2>${esc(f.name)} <span class="lvl">FFL ${esc(f.lvl)}</span></h2><p>Guest rooms ${STD}°C (vacant: off). Staff areas ${STD}°C while in use. Corridors, common areas, restaurants and unused areas off.</p></div>`;
+  f.zones.forEach(z=>{const k=stats(z.ids);h+=`<section class="zone"><div class="zonehead"><div><h3>${esc(z.name)}</h3>${z.sub?`<span class="zn">${esc(z.sub)}</span>`:""}</div><span class="n muted" style="font-size:12px">${k.rec}/${k.total}</span></div>${z.rooms?roomZone(f,z,dis):z.ids.map(a=>areaRow(a,dis)).join("")}</section>`});
+  const i=FLOORS.indexOf(f);
+  h+=`<div style="display:flex;justify-content:space-between;gap:8px;margin-top:22px;flex-wrap:wrap">${i>0?`<button data-floor="${FLOORS[i-1].id}">← ${esc(FLOORS[i-1].name)}</button>`:"<span></span>"}${i<FLOORS.length-1?`<button class="primary" data-floor="${FLOORS[i+1].id}">Next: ${esc(FLOORS[i+1].name)} →</button>`:`<button class="primary" data-floor="SIGN">Go to sign-off →</button>`}</div>`;
+  main.innerHTML=h;
+}
+function summaryHtml(){const s=stats();return `<div class="sp"><div><b>${s.rec}/${s.total}</b>recorded</div><div><b>${s.off}</b>switched off / vacant</div><div><b>${s.on}</b>running at setpoint</div><div><b>${s.reset}</b>reset to 23°C</div><div><b>${s.dev}</b>not at 23°C</div><div><b>${s.na}</b>no access</div></div>`}
+function renderTechSign(){const s=stats(),bl=[];
+  if(s.rec<s.total)bl.push(`${s.total-s.rec} rooms or areas not recorded`);if(s.dev)bl.push(`${s.dev} areas running at a setpoint other than ${STD}°C`);if(s.missing)bl.push(`${s.missing} areas ON without setpoint or reason`);
+  const fl=allFlags().filter(f=>f[0]!=="Sign-off");const dis=D.tech.signedAt?" disabled":"";
+  main.innerHTML=`<div class="head"><h2>Technician sign-off</h2><p>${D.tech.signedAt?`Signed at ${hm(D.tech.signedAt)}. Locked.`:"Check the summary and sign off. The lobby log stays open until sunset."}</p></div>
+   <div class="panel"><h3>Summary</h3>${summaryHtml()}${fl.length?`<h4>Flags</h4><ul class="blockers" style="color:var(--warm)">${fl.map(f=>`<li>${esc(f[1])}</li>`).join("")}</ul>`:""}</div>
+   <div class="panel"><h3>Declaration</h3><label class="decl"><input type="checkbox" id="tDecl"${D.tech.signedAt?" checked":""}${dis}><span>I, <b>${esc(D.tech.name)}</b> (staff ID ${esc(D.tech.id)}), physically checked the thermostat of every room and area recorded, set them to the hotel standard, and switched off every unused area.</span></label>
+   ${bl.length&&!D.tech.signedAt?`<ul class="blockers">${bl.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>`:""}
+   <div class="share">${D.tech.signedAt?`<span class="pill ok">Signed ${hm(D.tech.signedAt)}</span>${owner?'<button id="tReopen">Reopen</button>':""}`:`<button class="primary" id="tSign"${bl.length?" disabled":""}>Sign off AC round</button>`}</div></div>`}
+function renderCE(){const c=D.ce;const dis=c.signedAt?" disabled":"";const ex=exceptions(),fl=allFlags().filter(f=>!(f[0]==="Sign-off"&&/Chief/.test(f[1])));
+  let sv={};try{sv=JSON.parse(localStorage.getItem(LSK+"ce")||"{}")}catch(e){}
+  main.innerHTML=`<div class="head"><h2>Chief Engineer review</h2><p>Review the technician's log, spot-check areas yourself at 18:30, write actions and sign off.</p></div>
+   ${!D.tech.signedAt?`<div class="notice warm">The technician has not signed off the AC round yet.</div>`:""}
+   <div class="panel"><h3>Today at a glance</h3>${summaryHtml()}<div class="strip" style="font-size:13px"><span>Lobby now <b class="n">${lobbyNow()?lobbyNow().set+"°C":"—"}</b></span><span>Time at ${HOT}°C <b class="n">${Math.floor(hotMinutes()/60)} h ${hotMinutes()%60} min</b></span><span>Lobby changes <b class="n">${lobbyList().filter(e=>e.kind!=="check").length}</b></span></div>
+    ${fl.length?`<h4>Flags (${fl.length})</h4><ul class="blockers" style="color:var(--warm)">${fl.map(f=>`<li><b>${esc(f[0])}.</b> ${esc(f[1])}</li>`).join("")}</ul>`:""}
+    <h4>Resets and exceptions (${ex.length})</h4>${ex.length?`<div class="tw"><table class="t"><thead><tr><th>Floor</th><th>Room / area</th><th>Finding</th><th>Time</th></tr></thead><tbody>${ex.map(e=>`<tr><td>${esc(e.a.floor.name)}</td><td>${esc(e.a.full)}</td><td>${esc(e.what)}</td><td class="n">${hm(e.x.t)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">None.</p>`}</div>
+   <div class="panel"><h3>Sign-off</h3><div class="form"><label>Full name<input id="cName" data-keep value="${esc(c.name||sv.name||"")}" placeholder="Chief Engineer"${dis}></label><label>Staff ID<input id="cId" data-keep value="${esc(c.id||sv.id||"")}"${dis}></label></div>
+    <div class="form" style="margin-top:10px;grid-template-columns:1fr"><label>Areas you spot-checked<input id="cSpot" data-keep value="${esc(c.spot||"")}" placeholder="e.g. Lobby 23°C, rooms 512 and 714, basement admin offices off"${dis}></label>
+    <label>Remarks and actions<textarea id="cRem" data-keep rows="3" placeholder="e.g. Room 605 thermostat keeps resetting. Replace on Friday."${dis}>${esc(c.remarks||"")}</textarea></label></div>
+    <label class="decl"><input type="checkbox" id="cDecl"${c.signedAt?" checked":""}${dis}><span>I reviewed today's AC log, personally spot-checked the areas listed, and confirm the hotel AC standard was followed or the actions above were taken.</span></label>
+    <div class="share">${c.signedAt?`<span class="pill ok">Signed ${hm(c.signedAt)} by ${esc(c.name)}</span>${owner?'<button id="cReopen">Reopen</button>':""}`:`<button class="primary" id="cSign">Sign off as Chief Engineer</button>`}</div><div id="cErr" class="blockers" role="alert"></div></div>`}
+function rulesHtml(){return `<div class="sp"><div><b>${STD}°C</b>Lobby, guest rooms, staff areas in use</div><div><b>${HOT}°C</b>Lobby only, in hot sun on the glass doors</div><div><b>OFF</b>Vacant rooms, unused corridors, common areas, restaurants</div><div><b>${CUTOFF}</b>Lobby back at ${STD}°C, Chief Engineer review</div></div><ol class="rules">${RULES.map(r=>`<li><b>${esc(r[0])}.</b> ${esc(r[1])}</li>`).join("")}</ol>`}
+function renderRules(){main.innerHTML=`<div class="head"><h2>AC rules</h2><p>Monitored daily by the AC technician and supervised by the Chief Engineer.</p></div><div class="panel">${rulesHtml()}</div>`}
+function textSummary(){const s=stats(),ln=lobbyNow(),ex=exceptions(),fl=allFlags();
+  let t=`*MGH AC Control Log — ${dateLabel()}*\nTechnician: ${D.tech.name||"—"} (ID ${D.tech.id||"—"})${D.tech.signedAt?`, signed ${hm(D.tech.signedAt)}`:", not signed"}\nChief Engineer: ${D.ce.signedAt?`${D.ce.name} (ID ${D.ce.id}), signed ${hm(D.ce.signedAt)}`:"NOT SIGNED"}\n`;
+  t+=`\n*Lobby*: now ${ln?ln.set+"°C":"—"} · ${lobbyList().filter(e=>e.kind!=="check").length} changes · ${Math.floor(hotMinutes()/60)} h ${hotMinutes()%60} min at ${HOT}°C`;
+  t+=`\n*Rooms & areas*: ${s.rec}/${s.total} recorded · ${s.off} off/vacant · ${s.on} at setpoint · ${s.reset} reset to 23°C · ${s.dev} not at 23°C · ${s.na} no access`;
+  if(ex.length)t+=`\n\n*Resets & exceptions (${ex.length})*\n`+ex.slice(0,15).map(e=>`• ${e.a.full} (${e.a.floor.name}): ${e.what}`).join("\n")+(ex.length>15?`\n…and ${ex.length-15} more`:"");
+  if(fl.length)t+=`\n\n*Flags*\n`+fl.map(f=>`• ${f[1]}`).join("\n");
+  if(D.ce.remarks)t+=`\n\n*Chief Engineer remarks*\n${D.ce.remarks}`;
+  return t+"\n\nFull PDF attached.";}
+function renderReport(){const txt=textSummary(),ex=exceptions(),use=inUse();
+  const wa="https://wa.me/?text="+encodeURIComponent(txt.slice(0,3000));const mail="mailto:?subject="+encodeURIComponent("MGH AC Control Log – "+date)+"&body="+encodeURIComponent(txt.replace(/\*/g,"").slice(0,1800));
+  main.innerHTML=`<div class="head"><h2>Daily AC report · ${esc(dateLabel())}</h2><p>${D.ce.signedAt?`Signed off by the Chief Engineer at ${hm(D.ce.signedAt)}.`:"Open until the Chief Engineer signs off."}</p></div>
+   <div class="panel"><h3>Download and share</h3><p class="muted" style="font-size:13px;margin:0">Download the PDF, then attach it in WhatsApp or your email.</p>
+    <div class="share"><button class="primary" id="pdfBtn">Download PDF report</button><a class="btn" href="${esc(wa)}" target="_blank" rel="noopener">Share on WhatsApp</a><a class="btn" href="${esc(mail)}">Email</a><button id="copyBtn">Copy summary</button></div>
+    <div id="pdfMsg" class="muted" style="font-size:13px;margin-top:8px" role="status"></div><pre class="rep" id="repTxt">${esc(txt)}</pre></div>
+   <div class="panel"><h3>Summary</h3>${summaryHtml()}</div>
+   <div class="panel"><h3>Areas running (${use.length})</h3>${use.length?`<div class="tw"><table class="t"><thead><tr><th>Floor</th><th>Area</th><th>Setpoint</th><th>Room temp</th><th>In use for</th><th>Time</th></tr></thead><tbody>${use.map(u=>`<tr><td>${esc(u.a.floor.name)}</td><td>${esc(u.a.n)}</td><td class="n">${esc(u.x.set)}°C</td><td class="n">${u.x.meas!=null&&u.x.meas!==""?esc(u.x.meas)+"°C":"—"}</td><td>${esc(u.x.r||"")}</td><td class="n">${hm(u.x.t)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">None recorded.</p>`}</div>
+   <div class="panel"><h3>Resets and exceptions (${ex.length})</h3>${ex.length?`<div class="tw"><table class="t"><thead><tr><th>Floor</th><th>Room / area</th><th>Finding</th><th>Time</th></tr></thead><tbody>${ex.map(e=>`<tr><td>${esc(e.a.floor.name)}</td><td>${esc(e.a.full)}</td><td>${esc(e.what)}</td><td class="n">${hm(e.x.t)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">None.</p>`}</div>
+   <div class="panel"><h3>Rules</h3>${rulesHtml()}</div>`;
+  if(!downloads||!window.jspdf){$("#pdfBtn").disabled=true;$("#pdfMsg").textContent="PDF download is not available in this view. Open the page in Claude to download.";}}
+function render(){renderHeader();({lobby:renderLobby,areas:renderAreas,ce:renderCE,report:renderReport,rules:renderRules})[tab]()}
+
+/* ============ PDF ============ */
+function ps(s){return String(s==null?"":s).replace(/[−–]/g,"-").replace(/[→]/g,"->").replace(/[✓]/g,"").replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/…/g,"...")}
+async function buildPDF(){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"a4"});const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=40;
+  const BLUE=[29,95,138],INK=[21,32,42],MUTED=[90,104,115];let y;
+  const base={styles:{font:"helvetica",fontSize:8,cellPadding:3,textColor:INK,lineColor:[214,221,226],lineWidth:.5},headStyles:{fillColor:BLUE,textColor:255,fontStyle:"bold"},margin:{left:M,right:M,top:M+10,bottom:40},theme:"grid"};
+  const tb=o=>{doc.autoTable(Object.assign({},base,o,{startY:y}));y=doc.lastAutoTable.finalY+20};
+  const sec=(t,sub)=>{if(y>H-110){doc.addPage();y=M+10}doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(...INK);doc.text(ps(t),M,y);y+=6;if(sub){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...MUTED);const l=doc.splitTextToSize(ps(sub),W-2*M);doc.text(l,M,y+9);y+=l.length*10+4}y+=6};
+  const para=t=>{doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...INK);const l=doc.splitTextToSize(ps(t),W-2*M);if(y+l.length*11>H-50){doc.addPage();y=M+10}doc.text(l,M,y);y+=l.length*11+6};
+  doc.setFillColor(...BLUE);doc.rect(0,0,W,78,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text("MANHATTAN GRAND HOTEL  ·  ENGINEERING",M,30);doc.setFontSize(19);doc.text("Daily AC Control Report",M,54);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(ps(dateLabel()),W-M,54,{align:"right"});y=102;
+  doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...(D.ce.signedAt?BLUE:[180,84,10]));doc.text(D.ce.signedAt?`Signed off by Chief Engineer ${ps(D.ce.name)} (ID ${ps(D.ce.id)}) at ${hm(D.ce.signedAt)}`:"OPEN: Chief Engineer has not signed off",M,y);y+=20;
+  const s=stats();
+  tb({head:[["Recorded","Off / vacant","At setpoint","Reset to 23°C","Not at 23°C","No access","Lobby at 19°C"]],body:[[`${s.rec}/${s.total}`,s.off,s.on,s.reset,s.dev,s.na,`${Math.floor(hotMinutes()/60)} h ${hotMinutes()%60} min`]],styles:Object.assign({},base.styles,{fontSize:11,fontStyle:"bold",halign:"center"}),headStyles:Object.assign({},base.headStyles,{fontSize:8,halign:"center"})});
+  sec("1. Staff");
+  tb({head:[["Role","Name","Staff ID","Started","Signed off","Declaration"]],body:[["AC technician",ps(D.tech.name||"-"),ps(D.tech.id||"-"),hm(D.tech.startedAt)||"-",hm(D.tech.signedAt)||"NOT SIGNED",D.tech.signedAt?"Confirmed":"-"],["Chief Engineer",ps(D.ce.name||"-"),ps(D.ce.id||"-"),"-",hm(D.ce.signedAt)||"NOT SIGNED",D.ce.signedAt?"Confirmed":"-"]]});
+  const l=lobbyList();sec(`2. Lobby log (${l.length})`,`Standard ${STD}°C; ${HOT}°C only while the sun heats the glass doors; back to ${STD}°C by ${CUTOFF}.`);
+  if(l.length)tb({head:[["Time","Action","Setpoint","Lobby temp","By","Staff ID","Note"]],body:l.map(e=>[hm(e.t),e.kind==="hot"?"Hot: set 19":e.kind==="normal"?"Back to 23":"Check",e.set+"°C",e.meas!=null&&e.meas!==""?e.meas+"°C":"-",ps(e.by||""),ps(e.sid||""),ps(e.note||"")]),didParseCell:h=>{if(h.section==="body"&&h.column.index===1&&String(h.cell.raw).indexOf("Hot")===0)h.cell.styles.textColor=[180,84,10]}});else para("No lobby entries.");
+  const fl=allFlags();sec(`3. Flags (${fl.length})`);if(fl.length)tb({head:[["Type","Flag"]],body:fl.map(f=>[f[0],ps(f[1])]),columnStyles:{0:{cellWidth:60}}});else para("No flags.");
+  const ex=exceptions();sec(`4. Resets and exceptions (${ex.length})`);if(ex.length)tb({head:[["Floor","Room / area","Finding","Time"]],body:ex.map(e=>[ps(e.a.floor.name),ps(e.a.full),ps(e.what),hm(e.x.t)])});else para("None.");
+  const use=inUse();sec(`5. Areas running (${use.length})`,"Areas left ON because they were in use, with setpoint and reason.");if(use.length)tb({head:[["Floor","Area","Setpoint","Room temp","In use for","Time"]],body:use.map(u=>[ps(u.a.floor.name),ps(u.a.n),u.x.set+"°C",u.x.meas!=null&&u.x.meas!==""?u.x.meas+"°C":"-",ps(u.x.r||""),hm(u.x.t)])});else para("None.");
+  sec("6. Chief Engineer review");para("Spot-checked: "+(D.ce.spot||"-"));para("Remarks and actions: "+(D.ce.remarks||"-"));
+  tb({head:[["Role","Name","Staff ID","Signature"]],body:[["AC technician",ps(D.tech.name||""),ps(D.tech.id||""),""],["Chief Engineer",ps(D.ce.name||""),ps(D.ce.id||""),""]],bodyStyles:{minCellHeight:26},columnStyles:{3:{cellWidth:150}}});
+  doc.addPage();y=M+10;sec("7. Every room and area","23 = at 23°C · OFF = off / vacant · RESET x = found at x°C, reset to 23 · N/A = no access · ON x = running at x°C.");
+  const rows=[];FLOORS.forEach(f=>{rows.push([{content:f.name,colSpan:5,styles:{fillColor:[225,237,245],fontStyle:"bold"}}]);
+    f.zones.forEach(z=>z.ids.forEach(a=>{const x=it(a.id);const st=status(a,x);
+      const v=!x?"":a.room?(st==="ok"?"23":st==="off"?"OFF":st==="reset"?`RESET ${x.fs}`:st==="na"?"N/A":""):x.on==="off"?"OFF":x.on==="on"?`ON ${x.set==null?"?":x.set}${x.fs!=null?` (was ${x.fs})`:""}`:"";
+      rows.push([ps(z.name),ps(a.full),v,x&&!a.room&&x.on==="on"?ps(x.r||""):"",x?hm(x.t):""])}))});
+  tb({head:[["Zone","Room / area","Status","In use for","Time"]],body:rows,styles:Object.assign({},base.styles,{fontSize:7,cellPadding:2}),didParseCell:h=>{if(h.section==="body"&&h.column.index===2){const r=String(h.cell.raw);if(r.indexOf("RESET")===0)h.cell.styles.textColor=[180,84,10];else if(/^ON (?!23)/.test(r))h.cell.styles.textColor=[179,38,30]}}});
+  doc.addPage();y=M+10;sec("8. AC rules");RULES.forEach((r,i)=>{doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(...INK);if(y>H-60){doc.addPage();y=M+10}doc.text(`${i+1}. ${ps(r[0])}`,M,y);y+=12;para(r[1])});
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.text(`MGH AC Control Log · ${date}`,M,H-20);doc.text(`Page ${i} of ${n}`,W-M,H-20,{align:"right"})}
+  return doc.output("blob");
+}
+
+/* ============ Events ============ */
+document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t||t.disabled)return;
+  if(t.dataset.tab){tab=t.dataset.tab;render();scrollTo(0,0);return}
+  if(t.dataset.floor){floor=t.dataset.floor;tab="areas";render();scrollTo(0,0);return}
+  if(t.id==="startBtn"){const n=$("#tName").value.trim(),i=$("#tId").value.trim();if(!n||!i){$("#startErr").innerHTML="<li>Enter your full name and staff ID.</li>";return}
+    try{localStorage.setItem(LSK+"tech",JSON.stringify({name:n,id:i}))}catch(_){}D.tech={name:n,id:i,uid:myId,startedAt:Date.now()};persist(exists?{tech:D.tech}:null);render();return}
+  if(t.dataset.lobby){const v=t.dataset.lobby;const ln=lobbyNow();const meas=$("#lMeas").value;const note=$("#lNote").value.trim();
+    if(v==="check"&&!ln){$("#lErr").innerHTML="<li>No setting logged yet. Use Back to 23°C to record the morning setting.</li>";return}
+    if(v==="check"&&meas===""){$("#lErr").innerHTML="<li>Enter the lobby temperature for a check.</li>";return}
+    const set=v==="check"?ln.set:Number(v);const k="e"+Date.now().toString(36);
+    const ent={t:Date.now(),set,kind:v==="check"?"check":set===HOT?"hot":"normal",meas:meas===""?null:Number(meas),note,by:D.tech.name,sid:D.tech.id,uid:myId};
+    D.lobby[k]=ent;persist({lobby:{[k]:ent}});render();return}
+  if(t.dataset.on){if(!techEditable())return;const id=t.dataset.on,v=t.dataset.v;const x=it(id)||{};const p={on:v};if(v==="on"&&(x.set==null||x.set===""))p.set=ALL[id].ex?null:STD;if(v==="off"){p.r="";p.fs=null}setArea(id,p);return}
+  if(t.dataset.reset){if(!techEditable())return;const x=it(t.dataset.reset);setArea(t.dataset.reset,{fs:x.set,set:STD,rt:Date.now()});return}
+  if(t.dataset.tile){sel[t.dataset.key]=sel[t.dataset.key]===t.dataset.tile?null:t.dataset.tile;render();return}
+  if(t.dataset.ract){if(!techEditable())return;const id=t.dataset.id,k=t.dataset.key,act=t.dataset.ract;
+    if(act==="clear"){const x={cleared:true,t:Date.now()};D.areas[id]=x;persist({areas:{[id]:{cleared:true,st:"",fs:null,t:x.t}}});sel[k]=null;render();return}
+    let p={st:act,fs:null};if(act==="reset"){const v=$("#fs-"+id).value;if(v===""){$("#rErr").textContent="Enter the setpoint you found.";return}p.fs=Number(v)}
+    const z=ALL[id].zone;const idx=z.ids.findIndex(a=>a.id===id);const nx=z.ids.slice(idx+1).find(a=>!status(a));sel[k]=nx?nx.id:null;setArea(id,p);return}
+  if(t.id==="tSign"){if(!$("#tDecl").checked){$("#tDecl").closest(".decl").style.outline="2px solid var(--bad)";return}D.tech.signedAt=Date.now();D.tech.signUid=myId;persist({tech:D.tech});render();return}
+  if(t.id==="tReopen"){D.tech.signedAt=null;persist({tech:D.tech});render();return}
+  if(t.id==="cSign"){const n=$("#cName").value.trim(),i=$("#cId").value.trim(),sp=$("#cSpot").value.trim();const er=[];if(!n||!i)er.push("Enter your full name and staff ID.");if(!sp)er.push("List the areas you spot-checked.");if(!$("#cDecl").checked)er.push("Tick the declaration.");
+    if(er.length){$("#cErr").innerHTML=er.map(x=>`<li>${esc(x)}</li>`).join("");return}try{localStorage.setItem(LSK+"ce",JSON.stringify({name:n,id:i}))}catch(_){}
+    D.ce={name:n,id:i,spot:sp,remarks:$("#cRem").value,uid:myId,signedAt:Date.now()};persist(exists?{ce:D.ce}:null);render();return}
+  if(t.id==="cReopen"){D.ce.signedAt=null;persist({ce:D.ce});render();return}
+  if(t.id==="copyBtn"){try{await navigator.clipboard.writeText(textSummary());t.textContent="Copied";setTimeout(()=>t.textContent="Copy summary",1600)}catch(_){const r=document.createRange();r.selectNodeContents($("#repTxt"));const s=getSelection();s.removeAllRanges();s.addRange(r)}return}
+  if(t.id==="pdfBtn"){const m=$("#pdfMsg");t.disabled=true;m.textContent="Building the PDF…";try{const b=await buildPDF();await downloads.save({filename:`MGH-AC-Log-${date}.pdf`,data:b});m.textContent="PDF saved. Attach it in WhatsApp or your email."}catch(err){m.textContent=err&&err.code==="declined"?"Download cancelled.":"The PDF could not be saved. Try again."}t.disabled=false;return}
+});
+const timers={};
+function debounced(id,fn){clearTimeout(timers[id]);timers[id]=setTimeout(fn,700)}
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.id==="dateIn"&&t.value){date=t.value;subscribe();return}
+  if(t.dataset.reason&&techEditable()){setArea(t.dataset.reason,{r:t.value});return}
+  if(t.dataset.set!==undefined&&techEditable()){const v=t.value===""?null:Number(t.value);setArea(t.dataset.set,{set:v});return}
+  if(t.dataset.meas!==undefined&&techEditable()){const id=t.dataset.meas;const x=Object.assign({},it(id)||{},{meas:t.value===""?null:Number(t.value)});D.areas[id]=x;persist({areas:{[id]:x}});return}
+});
+
+/* ============ Boot ============ */
+subscribe();
+(async()=>{const cl=window.claude&&window.claude.use?window.claude:null;if(!cl){setSave("Saved on this device");return}
+  const [d,u,dl]=await Promise.all([cl.use("db").catch(()=>null),cl.use("user").catch(()=>null),cl.use("downloads").catch(()=>null)]);user=u;downloads=dl;
+  if(u){try{myId=await u.id();owner=await u.isOwner()}catch(_){}}
+  if(d){db=d;mode="db";subscribe()}else{setSave("Saved on this device");render()}})();
+})();
+</script>
+
+</body>
+</html>
